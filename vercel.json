@@ -1,22 +1,31 @@
 {
-  "rewrites": [
-    { "source": "/api", "destination": "/api/proxy" }
-  ],
-  "headers": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
-      ]
+      "src": "api/proxy.js",
+      "use": "@vercel/node"
     },
     {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
-  "outputDirectory": "public"
+  "routes": [
+    {
+      "src": "/api",
+      "dest": "/api/proxy.js"
+    },
+    {
+      "src": "/sw.js",
+      "dest": "/public/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "Service-Worker-Allowed": "/"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
 }
