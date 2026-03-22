@@ -366,7 +366,7 @@
 // ============================================================
 // CONFIGURACIÓN
 // ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbxZ9BbFl8bGAy6t-RAgUFJJd7Dfh6R1MGerTEPDwEIoVG697TQ8Re2lIPftCphY9h_BsQ/exec'; // Reemplazá con la URL de tu Web App GAS
+const API_URL = '/api'; // Proxy Netlify → GAS (resuelve CORS)
 
 // ============================================================
 // ESTADO GLOBAL
@@ -863,12 +863,13 @@ async function changeMyPassword() {
 // ============================================================
 async function api(action, params = {}) {
   try {
-    const body = { action, token: appState.token, ...params };
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    const payload = { action, token: appState.token || '', ...params };
+    // Usamos GET con parámetros para evitar CORS preflight con GAS
+    const qs = Object.entries(payload)
+      .filter(([_, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v)}`)
+      .join('&');
+    const res = await fetch(`${API_URL}?${qs}`, { method: 'GET' });
     return await res.json();
   } catch (e) {
     console.error('API error:', e);
@@ -884,12 +885,22 @@ async function uploadToDrive(file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const base64 = e.target.result.split(',')[1];
-      const res = await api('uploadFile', {
-        fileName: file.name,
-        mimeType: file.type,
-        data: base64
-      });
-      resolve(res.success ? res.fileId : '');
+      // Para archivos usamos POST con form-urlencoded (sin preflight problemático)
+      try {
+        const body = new URLSearchParams({
+          action: 'uploadFile',
+          token: appState.token || '',
+          fileName: file.name,
+          mimeType: file.type,
+          data: base64
+        });
+        const res = await fetch(API_URL, { method: 'POST', body });
+        const json = await res.json();
+        resolve(json.success ? json.fileId : '');
+      } catch (err) {
+        console.error('Upload error:', err);
+        resolve('');
+      }
     };
     reader.readAsDataURL(file);
   });
