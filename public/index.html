@@ -245,18 +245,50 @@ let appState = { token: null, user: null, categorias: [], movimientos: [] };
 window._movMap = {};
 
 // --- COMUNICACIÓN API ---
+// Dentro de tu <script> en index.html
 async function api(action, data = {}) {
   try {
     const response = await fetch('/api', {
-      method: 'POST',
+      method: 'POST', // SIEMPRE POST
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, token: appState.token || '', ...data })
+      body: JSON.stringify({
+        action: action,
+        token: appState.token || '',
+        ...data
+      })
     });
-    if (!response.ok) throw new Error('Error de servidor');
-    return await response.json();
+
+    const text = await response.text();
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Respuesta no válida:", text);
+      return { success: false, error: "Error de formato en el servidor" };
+    }
   } catch (e) {
-    console.error(e);
-    return { success: false, error: 'Error de conexión' };
+    console.error("Error de conexión:", e);
+    return { success: false, error: "Verificá tu internet" };
+  }
+}
+
+// Ejemplo de uso para el Login corregido
+async function doLogin() {
+  const u = document.getElementById('loginUser').value;
+  const p = document.getElementById('loginPass').value;
+  
+  if (!u || !p) return;
+
+  const res = await api('login', { username: u, password: p });
+  
+  if (res.success) {
+    appState.token = res.token;
+    appState.user = res.user;
+    sessionStorage.setItem('sj_token', res.token);
+    sessionStorage.setItem('sj_user', JSON.stringify(res.user));
+    initApp();
+  } else {
+    alert(res.error || "Usuario o clave incorrecta");
   }
 }
 
