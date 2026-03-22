@@ -1,111 +1,41 @@
-/**
- * Service Worker - Comunidad San José
- * ⚠️ Importante: Incrementá el número de versión (v1.x) cada vez que realices 
- * cambios en el CSS o JS para que los usuarios reciban la actualización.
- */
-const CACHE_VERSION = 'sanjose-v1.3';
-const CACHE_NAME = CACHE_VERSION;
+// public/sw.js
+const CACHE_NAME = 'sanjose-v1.5';
+const ASSETS = ['/', '/index.html', '/manifest.json', '/icons/icon-192.png'];
 
-// Lista de archivos para funcionamiento offline
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  // Si tenés archivos CSS o JS externos locales, agregalos acá
-];
-
-// 1. Instalación: Guardar archivos estáticos en el caché
-self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando nueva versión:', CACHE_NAME);
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.warn('[SW] Error al cachear assets:', err);
-      });
-    })
-  );
-  // Forzar que el nuevo SW tome el control inmediatamente
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-// 2. Activación: Limpiar versiones viejas de caché
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activado y listo.');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter(name => name !== CACHE_NAME)
-          .map(name => {
-            console.log('[SW] Borrando caché antiguo:', name);
-            return caches.delete(name);
-          })
-      );
-    })
-  );
-  // Reclamar el control de todas las pestañas abiertas
-  return self.clients.claim();
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))));
+  self.clients.claim();
 });
 
-// 3. Estrategias de carga (Fetch)
 self.addEventListener('fetch', (event) => {
+  // IMPORTANTE: Ignorar peticiones que no sean http o https (evita error de chrome-extension)
+  if (!event.request.url.startsWith('http')) return;
+
   const url = new URL(event.request.url);
 
-  // ESTRATEGIA PARA API: Network Only (No cachear datos de la base de datos)
+  // La API siempre va a la red, nunca al caché
   if (url.pathname === '/api') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        // Si falla la red al llamar a la API, devolvemos un error JSON amigable
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Sin conexión. No se pudo conectar con el servidor.' 
-          }),
-          { headers: { 'Content-Type': 'application/json' } }
-        );
-      })
+      fetch(event.request).catch(() => new Response(JSON.stringify({success:false, error:'Sin red'}), {headers:{'Content-Type':'application/json'}}))
     );
     return;
   }
 
-  // ESTRATEGIA PARA HTML: Network First (Intentar red, si falla usar caché)
-  if (event.request.destination === 'document' || url.pathname === '/' || url.pathname === '/index.html') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Si la respuesta es válida, guardamos una copia fresca
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => {
-          // Si no hay internet, cargamos el index desde el caché
-          return caches.match('/index.html');
-        })
-    );
-    return;
-  }
-
-  // ESTRATEGIA PARA ASSETS (Imágenes, íconos, etc): Cache First
+  // Estrategia: Red primero, si falla, Caché
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
-      return fetch(event.request).then((networkResponse) => {
-        // Solo cacheamos respuestas exitosas
-        if (!networkResponse || networkResponse.status !== 200 || event.request.method !== 'GET') {
-          return networkResponse;
+    fetch(event.request)
+      .then(res => {
+        if (event.request.method === 'GET' && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
         }
-        
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
-        return networkResponse;
-      }).catch(() => {
-        // Si falla todo, devolvemos una respuesta vacía o error silencioso
-        return new Response('Offline');
-      });
-    })
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
