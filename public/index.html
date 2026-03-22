@@ -385,10 +385,30 @@ window._movMap = {};
 // INICIALIZACIÓN
 // ============================================================
 window.addEventListener('load', async () => {
-  // Registrar Service Worker
+  // Registrar Service Worker con detección de actualizaciones
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('/sw.js');
+      const reg = await navigator.serviceWorker.register('/sw.js');
+
+      // Detectar nueva versión disponible
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // Hay una versión nueva lista — recargar automáticamente
+            newSW.postMessage('SKIP_WAITING');
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              window.location.reload();
+            });
+          }
+        });
+      });
+
+      // Verificar actualizaciones cada vez que la app vuelve al foco
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+
     } catch (e) { console.warn('SW no registrado:', e); }
   }
 
