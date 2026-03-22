@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="San José">
   <title>Comunidad San José</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -615,8 +616,8 @@ async function loadMovimientos() {
     tipo: document.getElementById('filterTipo').value,
     categoria: document.getElementById('filterCat').value
   };
+
   const res = await api('getMovimientos', params);
-  console.log('Primer movimiento:', JSON.stringify(res.data?.[0]));
   if (!res.success) { list.innerHTML = `<p class="text-red-500 text-center">${res.error}</p>`; return; }
 
   appState.movimientos = res.data;
