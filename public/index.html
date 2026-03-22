@@ -615,7 +615,8 @@ async function loadMovimientos() {
     tipo: document.getElementById('filterTipo').value,
     categoria: document.getElementById('filterCat').value
   };
-
+const res = await api('getMovimientos', params);
+  console.log('Primer movimiento:', JSON.stringify(res.data?.[0]));
   const res = await api('getMovimientos', params);
   if (!res.success) { list.innerHTML = `<p class="text-red-500 text-center">${res.error}</p>`; return; }
 
