@@ -247,16 +247,12 @@ window._movMap = {};
 // --- COMUNICACIÓN API ---
 // Dentro de tu <script> en index.html
 async function api(action, data = {}) {
-  try {
-    const response = await fetch('/api', {
-      method: 'POST', // SIEMPRE POST
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: action,
-        token: appState.token || '',
-        ...data
-      })
-    });
+  // Cambiamos el comportamiento para que NUNCA envíe datos por la URL
+  const response = await fetch('/api', {
+    method: 'POST', // Esto corrige el 404
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...data }) // Los datos van aquí, no en la URL
+  });
 
     const text = await response.text();
     
