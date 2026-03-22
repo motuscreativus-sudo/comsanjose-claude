@@ -1,7 +1,7 @@
 
 
 // ⚠️ Cambiá este número cada vez que hagas un deploy con cambios
-const CACHE_VERSION = 'sanjose-v1.1';
+const CACHE_VERSION = 'sanjose-v1.2';
 const CACHE_NAME = CACHE_VERSION;
 
 const STATIC_ASSETS = [
