@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="San José">
+  <title>Comunidad San José</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    :root {
+      --indigo: #4f46e5;
+      --indigo-light: #6366f1;
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+    /* Animaciones */
+    .fade-in { animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Tarjetas */
+    .card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .btn-primary { background: var(--indigo); color: white; border-radius: 12px; padding: 12px 20px; font-weight: 600; transition: all .2s; }
+    .btn-primary:hover { background: var(--indigo-light); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary { background: #f1f5f9; color: #334155; border-radius: 12px; padding: 10px 16px; font-weight: 500; transition: all .2s; }
+    .btn-danger { background: #fef2f2; color: var(--red); border-radius: 12px; padding: 10px 16px; font-weight: 500; }
+
+    /* Inputs */
+    .input-field { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 16px; outline: none; transition: border .2s; background: white; }
+    .input-field:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+
+    /* Nav bottom */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; }
+    .bottom-nav button { flex: 1; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: #94a3b8; transition: color .2s; }
+    .bottom-nav button.active { color: var(--indigo); }
+    .bottom-nav button svg { width: 22px; height: 22px; }
+
+    /* Badge */
+    .badge-ingreso { background: #dcfce7; color: #15803d; font-size: 12px; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
+    .badge-egreso { background: #fee2e2; color: #dc2626; font-size: 12px; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 1000; transition: all .3s; }
+    .toast-show { opacity: 1 !important; transform: translateX(-50%) translateY(0) !important; }
+    .toast-hide { opacity: 0; transform: translateX(-50%) translateY(20px); pointer-events: none; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; display: flex; align-items: flex-end; }
+    .modal-sheet { background: white; border-radius: 24px 24px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
+    .modal-handle { width: 40px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: 0 auto 20px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+    .hidden { display: none !important; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Chart simple */
+    .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+    .bar { flex: 1; border-radius: 4px 4px 0 0; min-width: 20px; transition: height .5s ease; }
+  </style>
+</head>
+<body>
+
+<!-- ===== PANTALLA DE CARGA ===== -->
+<div id="loadingScreen" class="fixed inset-0 bg-indigo-600 flex flex-col items-center justify-center z-50">
+  <div class="text-white text-center">
+    <div class="text-5xl mb-4">⛪</div>
+    <h1 class="text-2xl font-bold mb-1">San José</h1>
+    <p class="text-indigo-200 text-sm">Gestión Comunitaria</p>
+    <div class="mt-8 w-8 h-8 border-2 border-white border-t-transparent rounded-full spin mx-auto"></div>
+  </div>
+</div>
+
+<!-- ===== LOGIN ===== -->
+<div id="loginScreen" class="hidden min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-600 to-purple-700">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="text-6xl mb-3">⛪</div>
+      <h1 class="text-3xl font-bold text-white">San José</h1>
+      <p class="text-indigo-200 mt-1">Gestión Comunitaria</p>
+    </div>
+    <div class="card p-6 fade-in">
+      <h2 class="text-lg font-semibold text-slate-700 mb-5">Iniciar Sesión</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-slate-600 block mb-1">Tu nombre</label>
+          <input id="loginUser" type="text" placeholder="Ej: Nora, Danilo, Admin..." class="input-field" autocomplete="username">
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-600 block mb-1">Contraseña</label>
+          <div class="relative">
+            <input id="loginPass" type="password" placeholder="Contraseña" class="input-field pr-10" autocomplete="current-password">
+            <button onclick="togglePass('loginPass')" class="absolute right-3 top-3.5 text-slate-400">👁</button>
+          </div>
+        </div>
+        <button onclick="doLogin()" class="btn-primary w-full text-center">Entrar</button>
+        <p id="loginError" class="text-red-500 text-sm text-center hidden"></p>
+      </div>
+    </div>
+    <p class="text-center text-indigo-200 text-xs mt-4">v1.0 — Comunidad San José</p>
+  </div>
+</div>
+
+<!-- ===== CAMBIO OBLIGATORIO DE CONTRASEÑA ===== -->
+<div id="changePassScreen" class="hidden min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-orange-500 to-amber-600">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="text-5xl mb-3">🔐</div>
+      <h2 class="text-2xl font-bold text-white">Crear tu contraseña</h2>
+      <p class="text-orange-100 mt-1 text-sm">Es tu primer ingreso. Debés crear una contraseña personal.</p>
+    </div>
+    <div class="card p-6 fade-in">
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-slate-600 block mb-1">Nueva contraseña</label>
+          <input id="newPass1" type="password" placeholder="Mínimo 6 caracteres" class="input-field">
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-600 block mb-1">Confirmar contraseña</label>
+          <input id="newPass2" type="password" placeholder="Repetí la contraseña" class="input-field">
+        </div>
+        <button onclick="doChangePassword()" class="btn-primary w-full text-center">Guardar y continuar</button>
+        <p id="changePassError" class="text-red-500 text-sm text-center hidden"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP PRINCIPAL ===== -->
+<div id="appScreen" class="hidden">
+  <!-- Header -->
+  <header class="bg-indigo-600 text-white px-4 pt-safe-top pb-3 safe-top">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-indigo-200 text-xs">Comunidad</p>
+        <h1 class="font-bold text-lg leading-tight">San José ⛪</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="userBadge" class="bg-indigo-500 text-xs px-3 py-1 rounded-full"></span>
+        <button onclick="doLogout()" class="text-indigo-200 text-sm">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido con páginas -->
+  <main class="pb-24 min-h-screen" style="padding-top: 0">
+
+    <!-- DASHBOARD -->
+    <div id="pageDashboard" class="page active p-4 fade-in">
+      <div id="dashboardContent">
+        <div class="flex justify-center py-10">
+          <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full spin"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOVIMIENTOS -->
+    <div id="pageMovimientos" class="page p-4 fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-bold text-slate-800 text-lg">Movimientos</h2>
+        <div class="flex gap-2">
+          <button onclick="exportPDF()" class="btn-secondary text-sm">📄 PDF</button>
+          <button id="btnNuevoMov" onclick="openMovModal()" class="btn-primary text-sm hidden">+ Nuevo</button>
+        </div>
+      </div>
+      <!-- Filtros -->
+      <div class="card p-3 mb-4">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">Desde</label>
+            <input id="filterDesde" type="date" class="input-field text-sm py-2">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">Hasta</label>
+            <input id="filterHasta" type="date" class="input-field text-sm py-2">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">Tipo</label>
+            <select id="filterTipo" class="input-field text-sm py-2">
+              <option value="todos">Todos</option>
+              <option value="ingreso">Ingresos</option>
+              <option value="egreso">Egresos</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">Categoría</label>
+            <select id="filterCat" class="input-field text-sm py-2">
+              <option value="todas">Todas</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="loadMovimientos()" class="btn-primary w-full text-sm mt-2 text-center">Filtrar</button>
+      </div>
+      <div id="movimientosList"></div>
+    </div>
+
+    <!-- USUARIOS (solo admin) -->
+    <div id="pageUsuarios" class="page p-4 fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-bold text-slate-800 text-lg">Usuarios</h2>
+        <button onclick="openUsuarioModal()" class="btn-primary text-sm">+ Nuevo</button>
+      </div>
+      <div id="usuariosList"></div>
+    </div>
+
+    <!-- LOGS (solo admin) -->
+    <div id="pageLogs" class="page p-4 fade-in">
+      <h2 class="font-bold text-slate-800 text-lg mb-4">Auditoría</h2>
+      <div id="logsList"></div>
+    </div>
+
+    <!-- MI CUENTA -->
+    <div id="pageCuenta" class="page p-4 fade-in">
+      <h2 class="font-bold text-slate-800 text-lg mb-4">Mi Cuenta</h2>
+      <div class="card p-5 mb-4">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center text-2xl">👤</div>
+          <div>
+            <p id="cuentaNombre" class="font-bold text-slate-800 text-lg"></p>
+            <p id="cuentaRol" class="text-slate-500 text-sm"></p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-semibold text-slate-700 mb-4">Cambiar Contraseña</h3>
+        <div class="space-y-3">
+          <input id="cpNew1" type="password" placeholder="Nueva contraseña" class="input-field">
+          <input id="cpNew2" type="password" placeholder="Confirmar contraseña" class="input-field">
+          <button onclick="changeMyPassword()" class="btn-primary w-full text-center">Actualizar contraseña</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav safe-bottom">
+    <button onclick="showPage('pageDashboard', this)" class="active" data-page="pageDashboard">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button onclick="showPage('pageMovimientos', this)" data-page="pageMovimientos">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Movimientos
+    </button>
+    <button id="navUsuarios" onclick="showPage('pageUsuarios', this)" data-page="pageUsuarios" class="hidden">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Usuarios
+    </button>
+    <button id="navLogs" onclick="showPage('pageLogs', this)" data-page="pageLogs" class="hidden">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Logs
+    </button>
+    <button onclick="showPage('pageCuenta', this)" data-page="pageCuenta">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Cuenta
+    </button>
+  </nav>
+</div>
+
+<!-- ===== MODAL MOVIMIENTO ===== -->
+<div id="modalMovimiento" class="modal-overlay hidden">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 id="modalMovTitle" class="font-bold text-slate-800 text-lg mb-5">Nuevo Movimiento</h3>
+    <input type="hidden" id="movId">
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1 block">Fecha *</label>
+          <input id="movFecha" type="date" class="input-field">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1 block">Tipo *</label>
+          <select id="movTipo" class="input-field">
+            <option value="ingreso">Ingreso</option>
+            <option value="egreso">Egreso</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1 block">Descripción *</label>
+        <input id="movDesc" type="text" placeholder="Descripción del movimiento" class="input-field">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1 block">Monto (ARS) *</label>
+          <input id="movMonto" type="number" placeholder="0.00" class="input-field" min="0" step="0.01">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600 mb-1 block">Categoría *</label>
+          <select id="movCategoria" class="input-field"></select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1 block">Comprobante (foto)</label>
+        <input id="movFile" type="file" accept="image/*,application/pdf" class="input-field text-sm">
+        <p class="text-xs text-slate-400 mt-1">Se sube a Google Drive automáticamente</p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeMovModal()" class="btn-secondary flex-1 text-center">Cancelar</button>
+        <button onclick="saveMovimiento()" class="btn-primary flex-1 text-center">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL USUARIO ===== -->
+<div id="modalUsuario" class="modal-overlay hidden">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 id="modalUserTitle" class="font-bold text-slate-800 text-lg mb-5">Nuevo Usuario</h3>
+    <input type="hidden" id="userId">
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1 block">Nombre *</label>
+        <input id="userNombre" type="text" placeholder="Nombre del usuario" class="input-field">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600 mb-1 block">Rol *</label>
+        <select id="userRol" class="input-field">
+          <option value="visor">Visor</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+      <div id="userActivoGroup">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input id="userActivo" type="checkbox" checked class="w-4 h-4 accent-indigo-600">
+          <span class="text-sm text-slate-600">Usuario activo</span>
+        </label>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
+        💡 El usuario iniciará con la contraseña: <strong>comsanjose</strong>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="closeUsuarioModal()" class="btn-secondary flex-1 text-center">Cancelar</button>
+        <button onclick="saveUsuario()" class="btn-primary flex-1 text-center">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast-hide">
+  <div id="toastContent" class="bg-slate-800 text-white text-sm px-5 py-3 rounded-full shadow-lg"></div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+const API_URL = 'AKfycbyecjQ5XFgSZBBdvtdIvsffl_xLAMHyY__TZdZtjPYowKod2qeGIVnvLI77QZnu5UVRXQ
+'; // Reemplazá con la URL de tu Web App GAS
+
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let appState = {
+  token: null,
+  user: null,
+  categorias: [],
+  movimientos: []
+};
+
+// ============================================================
+// INICIALIZACIÓN
+// ============================================================
+window.addEventListener('load', async () => {
+  // Registrar Service Worker
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('/sw.js');
+    } catch (e) { console.warn('SW no registrado:', e); }
+  }
+
+  // Verificar sesión guardada
+  const savedToken = sessionStorage.getItem('sj_token');
+  const savedUser = sessionStorage.getItem('sj_user');
+
+  if (savedToken && savedUser) {
+    appState.token = savedToken;
+    appState.user = JSON.parse(savedUser);
+    await initApp();
+  } else {
+    showScreen('login');
+  }
+});
+
+// ============================================================
+// NAVEGACIÓN DE PANTALLAS
+// ============================================================
+function showScreen(screen) {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('changePassScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.add('hidden');
+
+  if (screen === 'login') document.getElementById('loginScreen').classList.remove('hidden');
+  else if (screen === 'changePass') document.getElementById('changePassScreen').classList.remove('hidden');
+  else if (screen === 'app') document.getElementById('appScreen').classList.remove('hidden');
+}
+
+function showPage(pageId, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  if (btn) btn.classList.add('active');
+
+  // Cargar datos según página
+  if (pageId === 'pageDashboard') loadDashboard();
+  if (pageId === 'pageMovimientos') loadMovimientos();
+  if (pageId === 'pageUsuarios') loadUsuarios();
+  if (pageId === 'pageLogs') loadLogs();
+  if (pageId === 'pageCuenta') loadCuenta();
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+
+  if (!username || !password) {
+    showError(errEl, 'Completá todos los campos');
+    return;
+  }
+
+  const btn = event.target;
+  btn.textContent = 'Verificando...';
+  btn.disabled = true;
+
+  try {
+    const res = await api('login', { username, password });
+    if (res.success) {
+      appState.token = res.token;
+      appState.user = res.user;
+      sessionStorage.setItem('sj_token', res.token);
+      sessionStorage.setItem('sj_user', JSON.stringify(res.user));
+
+      if (res.user.primerLogin) {
+        showScreen('changePass');
+      } else {
+        await initApp();
+      }
+    } else {
+      showError(errEl, res.error || 'Error al iniciar sesión');
+    }
+  } catch (e) {
+    showError(errEl, 'Error de conexión. Verificá el servidor.');
+  }
+
+  btn.textContent = 'Entrar';
+  btn.disabled = false;
+}
+
+async function doChangePassword() {
+  const p1 = document.getElementById('newPass1').value;
+  const p2 = document.getElementById('newPass2').value;
+  const errEl = document.getElementById('changePassError');
+
+  if (p1.length < 6) return showError(errEl, 'Mínimo 6 caracteres');
+  if (p1 !== p2) return showError(errEl, 'Las contraseñas no coinciden');
+  if (p1 === 'comsanjose') return showError(errEl, 'No podés usar la contraseña inicial');
+
+  const res = await api('changePassword', { newPassword: p1 });
+  if (res.success) {
+    appState.user.primerLogin = false;
+    sessionStorage.setItem('sj_user', JSON.stringify(appState.user));
+    showToast('✅ Contraseña guardada. ¡Bienvenido!');
+    await initApp();
+  } else {
+    showError(errEl, res.error);
+  }
+}
+
+async function initApp() {
+  // Mostrar/ocultar elementos según rol
+  const isAdmin = appState.user.rol === 'admin';
+  document.getElementById('navUsuarios').classList.toggle('hidden', !isAdmin);
+  document.getElementById('navLogs').classList.toggle('hidden', !isAdmin);
+  document.getElementById('btnNuevoMov').classList.toggle('hidden', !isAdmin);
+
+  // Cargar categorías
+  const catRes = await api('getCategorias');
+  if (catRes.success) appState.categorias = catRes.data;
+
+  populateCategoriaSelects();
+  showScreen('app');
+  loadDashboard();
+}
+
+function doLogout() {
+  sessionStorage.clear();
+  appState = { token: null, user: null, categorias: [], movimientos: [] };
+  showScreen('login');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard() {
+  const container = document.getElementById('dashboardContent');
+  container.innerHTML = `<div class="flex justify-center py-10"><div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full spin"></div></div>`;
+
+  const res = await api('getDashboard');
+  if (!res.success) { container.innerHTML = `<p class="text-red-500 text-center py-4">${res.error}</p>`; return; }
+
+  const d = res.data;
+  const fmt = n => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
+
+  container.innerHTML = `
+    <div class="fade-in">
+      <p class="text-slate-500 text-sm mb-3 px-1">Resumen general</p>
+
+      <!-- Saldo -->
+      <div class="card p-5 mb-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+        <p class="text-indigo-200 text-sm mb-1">Saldo actual</p>
+        <p class="text-3xl font-bold">${fmt(d.saldo)}</p>
+        <p class="text-indigo-200 text-xs mt-1">${d.saldo >= 0 ? '✅ Superávit' : '⚠️ Déficit'}</p>
+      </div>
+
+      <!-- Ingresos / Egresos -->
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="card p-4">
+          <p class="text-slate-400 text-xs mb-1">Total Ingresos</p>
+          <p class="font-bold text-green-600 text-lg">${fmt(d.totalIngresos)}</p>
+          <p class="text-green-500 text-xs">↑ Entradas</p>
+        </div>
+        <div class="card p-4">
+          <p class="text-slate-400 text-xs mb-1">Total Egresos</p>
+          <p class="font-bold text-red-500 text-lg">${fmt(d.totalEgresos)}</p>
+          <p class="text-red-400 text-xs">↓ Salidas</p>
+        </div>
+      </div>
+
+      <!-- Últimos movimientos -->
+      <div class="card p-4">
+        <div class="flex justify-between items-center mb-3">
+          <p class="font-semibold text-slate-700">Últimos movimientos</p>
+          <button onclick="showPage('pageMovimientos', document.querySelector('[data-page=pageMovimientos]'))" class="text-indigo-500 text-xs font-medium">Ver todos</button>
+        </div>
+        <div class="space-y-2">
+          ${d.ultimos5.length === 0 ? '<p class="text-slate-400 text-sm text-center py-2">Sin movimientos</p>' :
+            d.ultimos5.map(m => `
+              <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div class="flex-1 min-w-0">
+                  <p class="text-slate-700 text-sm font-medium truncate">${escHtml(m.descripcion)}</p>
+                  <p class="text-slate-400 text-xs">${m.fecha} · ${escHtml(m.categoria)}</p>
+                </div>
+                <span class="font-semibold ml-3 ${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-500'}">
+                  ${m.tipo === 'ingreso' ? '+' : '-'}${fmt(m.monto)}
+                </span>
+              </div>
+            `).join('')
+          }
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// MOVIMIENTOS
+// ============================================================
+async function loadMovimientos() {
+  const list = document.getElementById('movimientosList');
+  list.innerHTML = `<div class="flex justify-center py-10"><div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full spin"></div></div>`;
+
+  const params = {
+    fechaDesde: document.getElementById('filterDesde').value,
+    fechaHasta: document.getElementById('filterHasta').value,
+    tipo: document.getElementById('filterTipo').value,
+    categoria: document.getElementById('filterCat').value
+  };
+
+  const res = await api('getMovimientos', params);
+  if (!res.success) { list.innerHTML = `<p class="text-red-500 text-center">${res.error}</p>`; return; }
+
+  appState.movimientos = res.data;
+  const fmt = n => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
+  const isAdmin = appState.user.rol === 'admin';
+
+  if (res.data.length === 0) {
+    list.innerHTML = `<div class="card p-8 text-center"><p class="text-slate-400">Sin movimientos para los filtros seleccionados</p></div>`;
+    return;
+  }
+
+  list.innerHTML = `
+    <p class="text-slate-400 text-xs px-1 mb-2">${res.data.length} movimientos encontrados ${res.fromCache ? '(desde caché)' : ''}</p>
+    <div class="space-y-2 fade-in">
+      ${res.data.map(m => `
+        <div class="card p-4">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="${m.tipo === 'ingreso' ? 'badge-ingreso' : 'badge-egreso'}">${m.tipo}</span>
+                <span class="text-slate-400 text-xs">${m.fecha}</span>
+              </div>
+              <p class="font-medium text-slate-800 text-sm truncate">${escHtml(m.descripcion)}</p>
+              <p class="text-slate-400 text-xs mt-0.5">${escHtml(m.categoria)} · por ${escHtml(m.creadoPor)}</p>
+              ${m.driveFileId ? `<a href="https://drive.google.com/file/d/${m.driveFileId}/view" target="_blank" class="text-indigo-500 text-xs mt-1 inline-block">📎 Ver comprobante</a>` : ''}
+            </div>
+            <div class="text-right shrink-0">
+              <p class="font-bold ${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-500'} text-base">
+                ${m.tipo === 'ingreso' ? '+' : '-'}${fmt(m.monto)}
+              </p>
+              ${isAdmin ? `
+                <div class="flex gap-1 mt-2 justify-end">
+                  <button onclick='openMovModal(${JSON.stringify(m)})' class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">✏️</button>
+                  <button onclick="deleteMovimiento('${m.id}')" class="text-xs bg-red-50 text-red-500 px-2 py-1 rounded-lg">🗑</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function openMovModal(mov = null) {
+  const isEdit = !!mov;
+  document.getElementById('modalMovTitle').textContent = isEdit ? 'Editar Movimiento' : 'Nuevo Movimiento';
+  document.getElementById('movId').value = isEdit ? mov.id : '';
+  document.getElementById('movFecha').value = isEdit ? mov.fecha : new Date().toISOString().split('T')[0];
+  document.getElementById('movTipo').value = isEdit ? mov.tipo : 'egreso';
+  document.getElementById('movDesc').value = isEdit ? mov.descripcion : '';
+  document.getElementById('movMonto').value = isEdit ? mov.monto : '';
+  document.getElementById('movCategoria').value = isEdit ? mov.categoria : '';
+  document.getElementById('modalMovimiento').classList.remove('hidden');
+}
+
+function closeMovModal() {
+  document.getElementById('modalMovimiento').classList.add('hidden');
+}
+
+async function saveMovimiento() {
+  const id = document.getElementById('movId').value;
+  const fecha = document.getElementById('movFecha').value;
+  const tipo = document.getElementById('movTipo').value;
+  const descripcion = document.getElementById('movDesc').value.trim();
+  const monto = document.getElementById('movMonto').value;
+  const categoria = document.getElementById('movCategoria').value;
+  const fileInput = document.getElementById('movFile');
+
+  if (!fecha || !descripcion || !monto || !categoria) {
+    showToast('⚠️ Completá todos los campos obligatorios', 'warn');
+    return;
+  }
+
+  let driveFileId = '';
+  if (fileInput.files.length > 0) {
+    showToast('📤 Subiendo comprobante...');
+    driveFileId = await uploadToDrive(fileInput.files[0]);
+  }
+
+  const action = id ? 'updateMovimiento' : 'createMovimiento';
+  const params = { fecha, tipo, descripcion, monto, categoria, driveFileId };
+  if (id) params.id = id;
+
+  const res = await api(action, params);
+  if (res.success) {
+    showToast(id ? '✅ Movimiento actualizado' : '✅ Movimiento creado');
+    closeMovModal();
+    loadMovimientos();
+    loadDashboard();
+  } else {
+    showToast('❌ ' + res.error, 'error');
+  }
+}
+
+async function deleteMovimiento(id) {
+  if (!confirm('¿Eliminár este movimiento? Esta acción no se puede deshacer.')) return;
+  const res = await api('deleteMovimiento', { id });
+  if (res.success) {
+    showToast('✅ Movimiento eliminado');
+    loadMovimientos();
+    loadDashboard();
+  } else {
+    showToast('❌ ' + res.error, 'error');
+  }
+}
+
+// ============================================================
+// USUARIOS
+// ============================================================
+async function loadUsuarios() {
+  const list = document.getElementById('usuariosList');
+  list.innerHTML = `<div class="flex justify-center py-10"><div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full spin"></div></div>`;
+
+  const res = await api('getUsuarios');
+  if (!res.success) { list.innerHTML = `<p class="text-red-500">${res.error}</p>`; return; }
+
+  list.innerHTML = `
+    <div class="space-y-2 fade-in">
+      ${res.data.map(u => `
+        <div class="card p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg ${u.rol === 'admin' ? 'bg-indigo-100' : 'bg-slate-100'}">
+                ${u.rol === 'admin' ? '👑' : '👤'}
+              </div>
+              <div>
+                <p class="font-medium text-slate-800">${escHtml(u.nombre)}</p>
+                <p class="text-xs text-slate-400">${u.rol} · ${u.activo ? '<span class="text-green-600">Activo</span>' : '<span class="text-red-500">Inactivo</span>'}</p>
+                <p class="text-xs text-slate-300">${u.primerLogin ? '⚠️ Pendiente cambio de clave' : '✅ Clave configurada'}</p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <button onclick='openUsuarioModal(${JSON.stringify(u)})' class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">✏️ Editar</button>
+              <button onclick="resetUserPass('${u.id}', '${escHtml(u.nombre)}')" class="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded-lg">🔑 Reset</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function openUsuarioModal(user = null) {
+  const isEdit = !!user;
+  document.getElementById('modalUserTitle').textContent = isEdit ? 'Editar Usuario' : 'Nuevo Usuario';
+  document.getElementById('userId').value = isEdit ? user.id : '';
+  document.getElementById('userNombre').value = isEdit ? user.nombre : '';
+  document.getElementById('userNombre').disabled = isEdit;
+  document.getElementById('userRol').value = isEdit ? user.rol : 'visor';
+  document.getElementById('userActivo').checked = isEdit ? user.activo : true;
+  document.getElementById('userActivoGroup').classList.toggle('hidden', !isEdit);
+  document.getElementById('modalUsuario').classList.remove('hidden');
+}
+
+function closeUsuarioModal() {
+  document.getElementById('modalUsuario').classList.add('hidden');
+}
+
+async function saveUsuario() {
+  const id = document.getElementById('userId').value;
+  const nombre = document.getElementById('userNombre').value.trim();
+  const rol = document.getElementById('userRol').value;
+  const activo = document.getElementById('userActivo').checked;
+
+  if (!nombre) return showToast('⚠️ El nombre es requerido', 'warn');
+
+  const action = id ? 'updateUsuario' : 'createUsuario';
+  const params = { nombre, rol };
+  if (id) { params.id = id; params.activo = activo; }
+
+  const res = await api(action, params);
+  if (res.success) {
+    showToast(id ? '✅ Usuario actualizado' : '✅ Usuario creado');
+    closeUsuarioModal();
+    loadUsuarios();
+  } else {
+    showToast('❌ ' + res.error, 'error');
+  }
+}
+
+async function resetUserPass(id, nombre) {
+  if (!confirm(`¿Resetear la contraseña de ${nombre} a "comsanjose"?`)) return;
+  const res = await api('resetPassword', { id });
+  showToast(res.success ? `✅ Contraseña de ${nombre} reseteada` : '❌ ' + res.error);
+}
+
+// ============================================================
+// LOGS
+// ============================================================
+async function loadLogs() {
+  const list = document.getElementById('logsList');
+  list.innerHTML = `<div class="flex justify-center py-10"><div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full spin"></div></div>`;
+
+  const res = await api('getLogs', { limit: 100 });
+  if (!res.success) { list.innerHTML = `<p class="text-red-500">${res.error}</p>`; return; }
+
+  const actionColors = {
+    LOGIN: 'bg-blue-50 text-blue-600',
+    LOGIN_FALLIDO: 'bg-red-50 text-red-600',
+    CREATE_MOVIMIENTO: 'bg-green-50 text-green-600',
+    UPDATE_MOVIMIENTO: 'bg-yellow-50 text-yellow-600',
+    DELETE_MOVIMIENTO: 'bg-red-50 text-red-600',
+    CREATE_USUARIO: 'bg-purple-50 text-purple-600',
+    RESET_PASSWORD: 'bg-orange-50 text-orange-600',
+    CAMBIO_PASSWORD: 'bg-indigo-50 text-indigo-600',
+  };
+
+  list.innerHTML = `
+    <div class="space-y-2 fade-in">
+      ${res.data.map(l => {
+        const color = actionColors[l.accion] || 'bg-slate-50 text-slate-600';
+        const fecha = l.timestamp ? new Date(l.timestamp).toLocaleString('es-AR') : '';
+        return `
+          <div class="card p-3">
+            <div class="flex items-start gap-3">
+              <span class="text-xs px-2 py-1 rounded-lg font-medium shrink-0 ${color}">${l.accion}</span>
+              <div class="min-w-0">
+                <p class="text-slate-700 text-sm font-medium">${escHtml(l.usuario)}</p>
+                <p class="text-slate-400 text-xs truncate">${escHtml(l.detalle)}</p>
+                <p class="text-slate-300 text-xs mt-0.5">${fecha}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+// MI CUENTA
+// ============================================================
+function loadCuenta() {
+  document.getElementById('cuentaNombre').textContent = appState.user.nombre;
+  document.getElementById('cuentaRol').textContent = appState.user.rol === 'admin' ? '👑 Administrador' : '👤 Visor';
+}
+
+async function changeMyPassword() {
+  const p1 = document.getElementById('cpNew1').value;
+  const p2 = document.getElementById('cpNew2').value;
+
+  if (p1.length < 6) return showToast('⚠️ Mínimo 6 caracteres', 'warn');
+  if (p1 !== p2) return showToast('⚠️ Las contraseñas no coinciden', 'warn');
+  if (p1 === 'comsanjose') return showToast('⚠️ No podés usar la contraseña inicial', 'warn');
+
+  const res = await api('changePassword', { newPassword: p1 });
+  if (res.success) {
+    showToast('✅ Contraseña actualizada');
+    document.getElementById('cpNew1').value = '';
+    document.getElementById('cpNew2').value = '';
+  } else {
+    showToast('❌ ' + res.error, 'error');
+  }
+}
+
+// ============================================================
+// API HELPER
+// ============================================================
+async function api(action, params = {}) {
+  try {
+    const body = { action, token: appState.token, ...params };
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('API error:', e);
+    return { success: false, error: 'Error de conexión: ' + e.message };
+  }
+}
+
+// ============================================================
+// UPLOAD A GOOGLE DRIVE (via GAS)
+// ============================================================
+async function uploadToDrive(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(',')[1];
+      const res = await api('uploadFile', {
+        fileName: file.name,
+        mimeType: file.type,
+        data: base64
+      });
+      resolve(res.success ? res.fileId : '');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
+// EXPORTACIÓN A PDF
+// ============================================================
+function exportPDF() {
+  if (!appState.movimientos || appState.movimientos.length === 0) {
+    showToast('⚠️ No hay movimientos para exportar', 'warn');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const fmt = n => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
+  const now = new Date().toLocaleString('es-AR');
+
+  // Calcular totales del listado actual
+  let totalIng = 0, totalEgr = 0;
+  appState.movimientos.forEach(m => {
+    if (m.tipo === 'ingreso') totalIng += m.monto;
+    else totalEgr += m.monto;
+  });
+  const saldo = totalIng - totalEgr;
+
+  // ── Encabezado ──
+  doc.setFillColor(79, 70, 229); // indigo-600
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Comunidad San José ⛪', 14, 13);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Reporte de Movimientos Económicos', 14, 20);
+  doc.text(`Generado: ${now}  |  Por: ${appState.user.nombre}`, 14, 27);
+
+  // ── Tarjetas resumen ──
+  doc.setTextColor(30, 30, 30);
+  const cards = [
+    { label: 'Total Ingresos', value: fmt(totalIng), color: [220, 252, 231], text: [21, 128, 61] },
+    { label: 'Total Egresos',  value: fmt(totalEgr), color: [254, 226, 226], text: [185, 28, 28] },
+    { label: 'Saldo',          value: fmt(saldo),    color: saldo >= 0 ? [224, 231, 255] : [254, 226, 226], text: saldo >= 0 ? [55, 48, 163] : [185, 28, 28] }
+  ];
+  const cardW = 56, cardX0 = 14, cardY = 38, cardH = 18;
+  cards.forEach((c, i) => {
+    const x = cardX0 + i * (cardW + 5);
+    doc.setFillColor(...c.color);
+    doc.roundedRect(x, cardY, cardW, cardH, 3, 3, 'F');
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(c.label, x + 4, cardY + 6);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...c.text);
+    doc.text(c.value, x + 4, cardY + 14);
+    doc.setFont('helvetica', 'normal');
+  });
+
+  // ── Tabla de movimientos ──
+  const rows = appState.movimientos.map(m => [
+    m.fecha,
+    m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1),
+    m.descripcion.length > 40 ? m.descripcion.substring(0, 38) + '…' : m.descripcion,
+    m.categoria,
+    fmt(m.monto),
+    m.creadoPor
+  ]);
+
+  doc.autoTable({
+    startY: 62,
+    head: [['Fecha', 'Tipo', 'Descripción', 'Categoría', 'Monto', 'Creado por']],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.2 },
+    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 60 },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 28, halign: 'right' },
+      5: { cellWidth: 28 }
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const val = data.cell.raw;
+        data.cell.styles.textColor = val === 'Ingreso' ? [21, 128, 61] : [185, 28, 28];
+        data.cell.styles.fontStyle = 'bold';
+      }
+      if (data.section === 'body' && data.column.index === 4) {
+        const tipo = data.row.raw[1];
+        data.cell.styles.textColor = tipo === 'Ingreso' ? [21, 128, 61] : [185, 28, 28];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    }
+  });
+
+  // ── Pie de página ──
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, pageH - 12, 196, pageH - 12);
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Comunidad San José — Sistema de Gestión Económica', 14, pageH - 7);
+    doc.text(`Página ${i} de ${pageCount}`, 196, pageH - 7, { align: 'right' });
+  }
+
+  // Guardar
+  const fecha = new Date().toISOString().split('T')[0];
+  doc.save(`SanJose_Movimientos_${fecha}.pdf`);
+  showToast('📄 PDF generado correctamente');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function populateCategoriaSelects() {
+  const selects = ['movCategoria', 'filterCat'];
+  selects.forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const defaultOpt = selId === 'filterCat' ? '<option value="todas">Todas</option>' : '<option value="">Seleccionar...</option>';
+    sel.innerHTML = defaultOpt + appState.categorias
+      .map(c => `<option value="${escHtml(c.nombre)}">${escHtml(c.nombre)}</option>`)
+      .join('');
+  });
+}
+
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const toast = document.getElementById('toast');
+  const content = document.getElementById('toastContent');
+  content.textContent = msg;
+  content.className = `text-sm px-5 py-3 rounded-full shadow-lg ${type === 'error' ? 'bg-red-600' : type === 'warn' ? 'bg-amber-600' : 'bg-slate-800'} text-white`;
+  toast.classList.remove('toast-hide');
+  toast.classList.add('toast-show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('toast-show');
+    toast.classList.add('toast-hide');
+  }, 3000);
+}
+
+function showError(el, msg) {
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function togglePass(inputId) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Enter en login
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginPass')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+</script>
+</body>
+</html>
