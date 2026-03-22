@@ -378,6 +378,9 @@ let appState = {
   movimientos: []
 };
 
+// Mapa global para edición de movimientos sin JSON en onclick
+window._movMap = {};
+
 // ============================================================
 // INICIALIZACIÓN
 // ============================================================
@@ -597,6 +600,8 @@ async function loadMovimientos() {
   if (!res.success) { list.innerHTML = `<p class="text-red-500 text-center">${res.error}</p>`; return; }
 
   appState.movimientos = res.data;
+  window._movMap = {};
+  res.data.forEach(m => { window._movMap[m.id] = m; });
   const fmt = n => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
   const isAdmin = appState.user.rol === 'admin';
 
@@ -626,7 +631,7 @@ async function loadMovimientos() {
               </p>
               ${isAdmin ? `
                 <div class="flex gap-1 mt-2 justify-end">
-                  <button onclick='openMovModal(${JSON.stringify(m)})' class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">✏️</button>
+                  <button onclick="openMovModal(window._movMap['${m.id}'])" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">✏️</button>
                   <button onclick="deleteMovimiento('${m.id}')" class="text-xs bg-red-50 text-red-500 px-2 py-1 rounded-lg">🗑</button>
                 </div>
               ` : ''}
@@ -711,6 +716,9 @@ async function loadUsuarios() {
   const res = await api('getUsuarios');
   if (!res.success) { list.innerHTML = `<p class="text-red-500">${res.error}</p>`; return; }
 
+  window._usrMap = {};
+  res.data.forEach(u => { window._usrMap[u.id] = u; });
+
   list.innerHTML = `
     <div class="space-y-2 fade-in">
       ${res.data.map(u => `
@@ -727,7 +735,7 @@ async function loadUsuarios() {
               </div>
             </div>
             <div class="flex flex-col gap-1">
-              <button onclick='openUsuarioModal(${JSON.stringify(u)})' class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">✏️ Editar</button>
+              <button onclick="openUsuarioModal(window._usrMap['${u.id}'])" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">✏️ Editar</button>
               <button onclick="resetUserPass('${u.id}', '${escHtml(u.nombre)}')" class="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded-lg">🔑 Reset</button>
             </div>
           </div>
