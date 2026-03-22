@@ -588,7 +588,7 @@ async function loadDashboard() {
               <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                 <div class="flex-1 min-w-0">
                   <p class="text-slate-700 text-sm font-medium truncate">${escHtml(m.descripcion)}</p>
-                  <p class="text-slate-400 text-xs">${m.fecha} · ${escHtml(m.categoria)}</p>
+                  <p class="text-slate-400 text-xs">${fmtFecha(m.fecha)} · ${escHtml(m.categoria)}</p>
                 </div>
                 <span class="font-semibold ml-3 ${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-500'}">
                   ${m.tipo === 'ingreso' ? '+' : '-'}${fmt(m.monto)}
@@ -639,10 +639,10 @@ async function loadMovimientos() {
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="${m.tipo === 'ingreso' ? 'badge-ingreso' : 'badge-egreso'}">${m.tipo}</span>
-                <span class="text-slate-400 text-xs">${m.fecha}</span>
+                <span class="text-slate-400 text-xs">${fmtFecha(m.fecha)}</span>
               </div>
               <p class="font-medium text-slate-800 text-sm truncate">${escHtml(m.descripcion)}</p>
-              <p class="text-slate-400 text-xs mt-0.5">${escHtml(m.categoria)} · por ${escHtml(m.creadoPor)}</p>
+                    <p class="text-slate-400 text-xs mt-0.5">${escHtml(m.categoria)} · por ${escHtml(m.creadoPor)}</p>
               ${m.driveFileId ? `<a href="https://drive.google.com/file/d/${m.driveFileId}/view" target="_blank" class="text-indigo-500 text-xs mt-1 inline-block">📎 Ver comprobante</a>` : ''}
             </div>
             <div class="text-right shrink-0">
@@ -1084,6 +1084,16 @@ function togglePass(inputId) {
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Formatea "yyyy-MM-dd" → "dd/MM/yyyy" sin usar new Date() para evitar
+// problemas de zona horaria en móviles (epoch 1970, día anterior, etc.)
+function fmtFecha(str) {
+  if (!str) return '';
+  const parts = String(str).split('-');
+  if (parts.length !== 3) return str;
+  const [y, m, d] = parts;
+  return `${d}/${m}/${y}`;
 }
 
 // Enter en login
