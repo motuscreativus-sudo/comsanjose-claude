@@ -1,16 +1,20 @@
-const CACHE_NAME = 'sanjose-v1.0';
+
+
+// ⚠️ Cambiá este número cada vez que hagas un deploy con cambios
+const CACHE_VERSION = 'sanjose-v1.1';
+const CACHE_NAME = CACHE_VERSION;
+
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  'https://cdn.tailwindcss.com'
+  '/icons/icon-512.png'
 ];
 
 // Instalación: pre-cachear assets estáticos
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando...');
+  console.log('[SW] Instalando versión:', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch(err => {
@@ -18,12 +22,13 @@ self.addEventListener('install', (event) => {
       });
     })
   );
+  // Forzar activación inmediata sin esperar a que se cierren las pestañas
   self.skipWaiting();
 });
 
-// Activación: limpiar caches viejos
+// Activación: limpiar TODOS los caches viejos
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activando...');
+  console.log('[SW] Activando versión:', CACHE_NAME);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -34,17 +39,19 @@ self.addEventListener('activate', (event) => {
             return caches.delete(name);
           })
       );
+    }).then(() => {
+      // Tomar control de todos los clientes abiertos inmediatamente
+      return self.clients.claim();
     })
   );
-  self.clients.claim();
 });
 
-// Estrategia: Network First para API, Cache First para assets
+// Estrategia: Network First para HTML (siempre fresco), Cache First para assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // API de Google Apps Script → siempre network (no cachear datos)
-  if (url.hostname.includes('script.google.com')) {
+  // API de Netlify/GAS → siempre network, nunca cachear
+  if (url.pathname === '/api' || url.hostname.includes('script.google.com')) {
     event.respondWith(
       fetch(event.request).catch(() => {
         return new Response(
@@ -56,60 +63,40 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets estáticos → Cache First, fallback a network
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+  // index.html → Network First: intenta red, cae a cache solo si falla
+  if (event.request.destination === 'document' || url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Guardamos la versión fresca en cache
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
 
+  // Otros assets (íconos, manifest) → Cache First
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
       return fetch(event.request).then((response) => {
-        // Solo cachear respuestas válidas y GET
         if (!response || response.status !== 200 || event.request.method !== 'GET') {
           return response;
         }
-
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
-
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return response;
-      }).catch(() => {
-        // Página offline de fallback
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
-      });
+      }).catch(() => caches.match('/index.html'));
     })
   );
 });
 
-// Sincronización en segundo plano (para cuando vuelva la conexión)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-movimientos') {
-    console.log('[SW] Sincronizando movimientos pendientes...');
-    // Implementar cola de operaciones offline si se necesita
+// Mensaje desde el frontend para forzar actualización
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
-});
-
-// Notificaciones push (base para futuras notificaciones)
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const options = {
-    body: data.body || 'Nueva notificación de San José',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
-    vibrate: [100, 50, 100],
-    data: { url: data.url || '/' }
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Comunidad San José', options)
-  );
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data.url)
-  );
 });
