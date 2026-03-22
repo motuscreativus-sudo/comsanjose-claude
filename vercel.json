@@ -1,31 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/proxy.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api",
-      "dest": "/api/proxy.js"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "/public/sw.js",
-      "headers": {
-        "Cache-Control": "no-cache",
-        "Service-Worker-Allowed": "/"
-      }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
+  "rewrites": [
+    { "source": "/api", "destination": "/api/proxy.js" },
+    { "source": "/sw.js", "destination": "/public/sw.js" },
+    { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
