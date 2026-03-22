@@ -21,5 +21,5 @@
 
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "https://script.google.com/macros/s/AKfycbxbSfW4_sw6SvdXks9cCs87zvHqhTinq-qQp-sFcR6cW3y1GCaMlOuHRHUlYYtPJ2Fawg/exec"
   status = 200
