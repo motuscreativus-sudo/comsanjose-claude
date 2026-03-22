@@ -367,7 +367,7 @@
 // ============================================================
 // CONFIGURACIÓN
 // ============================================================
-const API_URL = '/api'; // Proxy Netlify → GAS (resuelve CORS)
+const API_URL = 'https://script.google.com/macros/s/AKfycbyfVAfCT0v9l9Wu263VGJCr93g6xdbkvwcpXLwoEyeO2U5TsdUTtDrfjskrqXY8_IJc_g/exec';
 
 // ============================================================
 // ESTADO GLOBAL
@@ -880,22 +880,49 @@ async function changeMyPassword() {
 }
 
 // ============================================================
-// API HELPER
+// API HELPER — JSONP (evita CORS con GAS sin proxy)
 // ============================================================
-async function api(action, params = {}) {
-  try {
-    const payload = { action, token: appState.token || '', ...params };
-    // Usamos GET con parámetros para evitar CORS preflight con GAS
+function api(action, params = {}) {
+  return new Promise((resolve) => {
+    const cbName = '_cb_' + Math.random().toString(36).slice(2);
+    const payload = { action, token: appState.token || '', callback: cbName, ...params };
+
+    // Limpiar parámetros undefined/null
+    Object.keys(payload).forEach(k => {
+      if (payload[k] === undefined || payload[k] === null) delete payload[k];
+    });
+
     const qs = Object.entries(payload)
-      .filter(([_, v]) => v !== undefined && v !== null)
       .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v)}`)
       .join('&');
-    const res = await fetch(`${API_URL}?${qs}`, { method: 'GET' });
-    return await res.json();
-  } catch (e) {
-    console.error('API error:', e);
-    return { success: false, error: 'Error de conexión: ' + e.message };
-  }
+
+    // Timeout de 15 segundos
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve({ success: false, error: 'Tiempo de espera agotado' });
+    }, 15000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+    }
+
+    window[cbName] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = `${API_URL}?${qs}`;
+    script.onerror = () => {
+      cleanup();
+      resolve({ success: false, error: 'Error de conexión' });
+    };
+    document.head.appendChild(script);
+  });
 }
 
 // ============================================================
