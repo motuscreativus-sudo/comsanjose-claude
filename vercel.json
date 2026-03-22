@@ -1,74 +1,53 @@
-
 // ============================================================
-// Netlify Function — Proxy hacia Google Apps Script
-// Ruta del archivo: netlify/functions/proxy.js
-// ============================================================
-// Esta función actúa como intermediario entre el frontend y GAS,
-// resolviendo el bloqueo CORB/CORS del navegador. Todas las
-// peticiones pasan por el servidor de Netlify, no por el navegador.
+// Vercel Serverless Function — Proxy hacia Google Apps Script
+// Ruta del archivo: api/proxy.js
 // ============================================================
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxZ9BbFl8bGAy6t-RAgUFJJd7Dfh6R1MGerTEPDwEIoVG697TQ8Re2lIPftCphY9h_BsQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxLCVkF_jA5Py2JRmaOaUBtk9bRxcTntaJ2rNouaaeuR2b1Xnr8lsHZEH-A4XfrZhNzlA/exec';
 
-exports.handler = async (event) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Responder preflight OPTIONS
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: corsHeaders, body: '' };
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
   }
 
   try {
     let gasUrl = GAS_URL;
     let fetchOptions = { redirect: 'follow' };
 
-    if (event.httpMethod === 'GET') {
-      // Pasar query string al GAS
-      const qs = event.rawQuery || event.queryStringParameters
-        ? new URLSearchParams(event.queryStringParameters).toString()
-        : '';
+    if (req.method === 'GET') {
+      const qs = new URLSearchParams(req.query).toString();
       if (qs) gasUrl = `${GAS_URL}?${qs}`;
       fetchOptions.method = 'GET';
 
-    } else if (event.httpMethod === 'POST') {
+    } else if (req.method === 'POST') {
       fetchOptions.method = 'POST';
-      fetchOptions.body = event.body;
-      // No enviamos Content-Type para evitar preflight en GAS
+      fetchOptions.body = typeof req.body === 'string'
+        ? req.body
+        : new URLSearchParams(req.body).toString();
     }
 
     const response = await fetch(gasUrl, fetchOptions);
     const text = await response.text();
 
-    // Verificar que la respuesta sea JSON válido
+    console.log('GAS status:', response.status);
+    console.log('GAS response (primeros 500 chars):', text.substring(0, 500));
+
     let json;
     try {
       json = JSON.parse(text);
     } catch {
-      console.error('GAS devolvió no-JSON:', text.substring(0, 200));
-      return {
-        statusCode: 502,
-        headers: corsHeaders,
-        body: JSON.stringify({ success: false, error: 'Respuesta inválida del servidor' })
-      };
+      console.error('GAS devolvió no-JSON:', text.substring(0, 500));
+      return res.status(502).json({ success: false, error: 'Respuesta inválida del servidor' });
     }
 
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify(json)
-    };
+    return res.status(200).json(json);
 
   } catch (err) {
     console.error('Proxy error:', err.message);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ success: false, error: 'Error del proxy: ' + err.message })
-    };
+    return res.status(500).json({ success: false, error: 'Error del proxy: ' + err.message });
   }
-};
+}
