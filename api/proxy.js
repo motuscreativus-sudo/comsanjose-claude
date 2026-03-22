@@ -3,7 +3,7 @@
 // Ruta del archivo: api/proxy.js
 // ============================================================
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwdGYqh4O2NIg26c_npKqsWZJ2GSJp5geD8zwbzBYTDeNDb65B87d-qmO4EXZj_ljGViA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxLCVkF_jA5Py2JRmaOaUBtk9bRxcTntaJ2rNouaaeuR2b1Xnr8lsHZEH-A4XfrZhNzlA/exec';
 
 export default async function handler(req, res) {
   // Headers CORS
