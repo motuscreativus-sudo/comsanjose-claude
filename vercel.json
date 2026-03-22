@@ -1,1 +1,47 @@
+{
+  "rewrites": [
+    { "source": "/api", "destination": "/api/proxy" },
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}
+# ============================================================
+# COMUNIDAD SAN JOSÉ — Configuración Netlify
+# Guardá este archivo en la RAÍZ del proyecto como: netlify.toml
+# ============================================================
 
+[build]
+  publish = "public"   # Carpeta que contiene index.html, manifest.json, sw.js
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[redirects]]
+  from = "/*"
+  to = "https://script.google.com/macros/s/AKfycbwdGYqh4O2NIg26c_npKqsWZJ2GSJp5geD8zwbzBYTDeNDb65B87d-qmO4EXZj_ljGViA/exec"
+  status = 200
