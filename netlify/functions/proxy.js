@@ -7,7 +7,7 @@
 // peticiones pasan por el servidor de Netlify, no por el navegador.
 // ============================================================
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxZ9BbFl8bGAy6t-RAgUFJJd7Dfh6R1MGerTEPDwEIoVG697TQ8Re2lIPftCphY9h_BsQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzj8RpeKZUnmr_n0k7RrEcOfBRvFQeTQVZDTkg8thwCK6pkYfDqRYV4JjPw6CsQT_XCbg/exec';
 
 exports.handler = async (event) => {
   const corsHeaders = {
